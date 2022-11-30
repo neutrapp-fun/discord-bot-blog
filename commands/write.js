@@ -16,8 +16,19 @@ module.exports = {
 				.setRequired(true)),
 	async execute(interaction) {
 		const content = interaction.options.getString("content")
-		const title = interaction.options.getString("title")
+		const slug = interaction.options.getString("slug")
 
-		await interaction.reply('Post has been send : https://neutrapp.com/blog/'+title);
+		fetch('https://neutrapp.com/api/posts', {
+			method: 'POST',
+			headers: {
+				'Accept': 'application/json',
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ "content": content })
+		})
+		.then(response => response.json())
+		.then(response => console.log(JSON.stringify(response)))
+
+		await interaction.reply('Post has been send : https://neutrapp.com/blog/'+slug);
 	},
 };

@@ -1,34 +1,53 @@
 const { SlashCommandBuilder } = require('discord.js');
+const { supabase } = require('../supabase.js')
 
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('write')
-		.setDescription('Send a new blog on neutrapp.com')
+		.setDescription('Envoyer un nouveau post sur Blue Boules')
 		.addStringOption(option =>
 			option
-				.setName("slug")
-				.setDescription("The article slug")
+				.setName("texte")
+				.setDescription("Le texte de votre post")
 				.setRequired(true))
 		.addStringOption(option =>
 			option
-				.setName("content")
-				.setDescription("The article content")
+				.setName("tags")
+				.setDescription("Les tags de votre post (séparé par des points virgule)")
 				.setRequired(true)),
 	async execute(interaction) {
-		const content = interaction.options.getString("content")
-		const slug = interaction.options.getString("slug")
+		const texte = interaction.options.getString("texte")
+		let tags = interaction.options.getString("tags")
 
-		fetch('https://neutrapp.com/api/posts', {
-			method: 'POST',
-			headers: {
-				'Accept': 'application/json',
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ "content": content })
-		})
-		.then(response => response.json())
-		.then(response => console.log(JSON.stringify(response)))
+		const { data, error } = await supabase
+			.from('posts')
+			.insert({ content: texte, status: 0, upvotes: 0})
+			.select()
 
-		await interaction.reply('Post has been send : https://neutrapp.com/blog/'+slug);
+		let post_id = data[0].id
+
+		tags = tags.split(";")
+		let tagsGetError = false
+		let tagsError = []
+		for(const tag of tags){
+			const { data, error } = await supabase
+			.from('tags')
+			.select('*')
+			.eq('name', tag.toUpperCase())
+
+			let dataResult = data
+
+			if(data.length == 0){
+				tagsGetError = true
+				tagsError.push(tag)
+			}else{
+
+				const { data, error } = await supabase
+				.from('posts_tags')
+				.insert({fk_posts: post_id, fk_tags: dataResult[0].id})
+			}
+		}
+
+		await interaction.reply('Le post à été envoyé' + (tagsGetError ? ". Cependant, certains tags ont été ignoré ("+tagsError.join(", ")+")":""));
 	},
 };
